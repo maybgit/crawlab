@@ -37,26 +37,27 @@ func (l *LocalNode) Ready() error {
 	return nil
 }
 
-func NewLocalNode(ip string, identify string, identifyTypeString string) (node *LocalNode, err error) {
+func NewLocalNode(ip string, customNodeName string, registerType string) (node *LocalNode, err error) {
+	var mac string
 	addrs, err := sockaddr.GetPrivateInterfaces()
-	if ip == "" {
+	if (IdentifyType(registerType) == Ip && ip == "") || IdentifyType(registerType) == Mac {
 		if err != nil {
-			return node, err
+			return nil, err
 		}
 		if len(addrs) == 0 {
-			return node, errors.New("address not found")
+			return nil, errors.New("address not found")
 		}
 		ipaddr := *sockaddr.ToIPAddr(addrs[0].SockAddr)
 		ip = ipaddr.NetIP().String()
+		mac = addrs[0].HardwareAddr.String()
 	}
 
-	mac := addrs[0].HardwareAddr.String()
 	hostname, err := os.Hostname()
 	if err != nil {
 		return node, err
 	}
 	local := local{Ip: ip, Mac: mac, Hostname: hostname}
-	switch IdentifyType(identifyTypeString) {
+	switch IdentifyType(registerType) {
 	case Ip:
 		local.Identify = local.Ip
 		local.IdentifyType = Ip
@@ -67,8 +68,8 @@ func NewLocalNode(ip string, identify string, identifyTypeString string) (node *
 		local.Identify = local.Hostname
 		local.IdentifyType = Hostname
 	default:
-		local.Identify = identify
-		local.IdentifyType = IdentifyType(identifyTypeString)
+		local.Identify = customNodeName
+		local.IdentifyType = IdentifyType(registerType)
 	}
 	return &LocalNode{local: local, mongo: mongo{}}, nil
 }
